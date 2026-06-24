@@ -283,7 +283,7 @@ export function Play({ gameId, game, uid }: Props) {
                 Saltar
               </Button>
               <Button variant="primary" size="sm" full onClick={() => goTo(index + 1)}>
-                {validating[cat] ? '…' : 'Siguiente'}
+                Siguiente
               </Button>
             </div>
           </div>
