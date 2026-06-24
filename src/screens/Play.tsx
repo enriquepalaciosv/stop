@@ -218,16 +218,36 @@ export function Play({ gameId, game, uid }: Props) {
             </p>
           )}
 
-          <div className="mt-auto grid grid-cols-3 gap-2 pt-6">
-            <Button variant="ghost" full onClick={() => goTo(index - 1)} disabled={index === 0}>
-              ← Atrás
-            </Button>
-            <Button variant="ghost" full onClick={() => goTo(index + 1)}>
-              Saltar
-            </Button>
-            <Button variant="primary" full onClick={() => goTo(index + 1)}>
-              {validating[cat] ? '…' : 'Siguiente'}
-            </Button>
+          <div className="mt-auto space-y-3 pt-6">
+            {allValid && (
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex flex-col items-center gap-1"
+              >
+                <p className="font-display text-sm font-bold text-brand-green">
+                  ¡Todas válidas! Ya puedes detener 🛑
+                </p>
+                <StopButton enabled={!stopping} loading={stopping} onClick={onStop} />
+              </motion.div>
+            )}
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                full
+                onClick={() => goTo(index - 1)}
+                disabled={index === 0}
+              >
+                ← Atrás
+              </Button>
+              <Button variant="ghost" size="sm" full onClick={() => goTo(index + 1)}>
+                Saltar
+              </Button>
+              <Button variant="primary" size="sm" full onClick={() => goTo(index + 1)}>
+                {validating[cat] ? '…' : 'Siguiente'}
+              </Button>
+            </div>
           </div>
         </motion.div>
       ) : (

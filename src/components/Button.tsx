@@ -10,14 +10,23 @@ const VARIANTS: Record<Variant, string> = {
   ghost: 'bg-white/10 text-white ring-1 ring-white/25',
 }
 
+type Size = 'md' | 'sm'
+
+const SIZES: Record<Size, string> = {
+  md: 'px-6 py-4 text-xl tracking-wide',
+  sm: 'px-2 py-3 text-base tracking-normal',
+}
+
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant
+  size?: Size
   children: ReactNode
   full?: boolean
 }
 
 export function Button({
   variant = 'primary',
+  size = 'md',
   full = true,
   children,
   className = '',
@@ -26,10 +35,10 @@ export function Button({
 }: Props) {
   return (
     <button
-      className={`font-display select-none rounded-2xl px-6 py-4 text-xl font-extrabold
-        tracking-wide transition-all duration-100 active:translate-y-1
+      className={`font-display select-none truncate rounded-2xl font-extrabold
+        transition-all duration-100 active:translate-y-1
         disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none
-        ${VARIANTS[variant]} ${full ? 'w-full' : ''} ${className}`}
+        ${SIZES[size]} ${VARIANTS[variant]} ${full ? 'w-full' : ''} ${className}`}
       disabled={disabled}
       {...rest}
     >

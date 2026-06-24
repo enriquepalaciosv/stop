@@ -15,7 +15,7 @@ export const LETTERS = [
   'V', 'Y', 'Z',
 ]
 
-export const ROUND_SECONDS = 120
+export const ROUND_SECONDS = 60
 
 // Alfabeto para los códigos de partida (sin caracteres ambiguos: 0/O/1/I).
 export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'

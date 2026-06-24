@@ -21,7 +21,11 @@ export const LETTERS = [
 ] as const
 
 // Duración de cada ronda (segundos).
-export const ROUND_SECONDS = 120
+export const ROUND_SECONDS = 60
+
+// Mostrar el campo de clave secreta en Crear/Unirse.
+// La funcionalidad existe en el backend; por ahora se oculta en la UI.
+export const SHOW_SECRET_FIELD = false
 
 // Puntajes por categoría.
 export const POINTS = {

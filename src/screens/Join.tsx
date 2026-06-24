@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '../components/Button'
 import { api } from '../lib/api'
+import { SHOW_SECRET_FIELD } from '../lib/constants'
 
 interface Props {
   initialNick: string
@@ -64,18 +65,20 @@ export function Join({ initialNick, onBack, onJoined }: Props) {
           />
         </label>
 
-        <label className="block">
-          <span className="mb-1 block font-bold text-white/80">
-            Clave secreta <span className="font-normal text-white/50">(si la tiene)</span>
-          </span>
-          <input
-            className="input"
-            value={secret}
-            maxLength={40}
-            placeholder="Déjala vacía si es público"
-            onChange={(e) => setSecret(e.target.value)}
-          />
-        </label>
+        {SHOW_SECRET_FIELD && (
+          <label className="block">
+            <span className="mb-1 block font-bold text-white/80">
+              Clave secreta <span className="font-normal text-white/50">(si la tiene)</span>
+            </span>
+            <input
+              className="input"
+              value={secret}
+              maxLength={40}
+              placeholder="Déjala vacía si es público"
+              onChange={(e) => setSecret(e.target.value)}
+            />
+          </label>
+        )}
 
         {error && <p className="font-semibold text-brand-amber">{error}</p>}
       </div>
