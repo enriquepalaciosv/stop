@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Nunito', system-ui, sans-serif;
+  color: #fff;
+  background: radial-gradient(circle at 20% 0%, #6d28d9 0%, #3b0764 45%, #1e1033 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+@layer components {
+  .font-display {
+    font-family: 'Baloo 2', system-ui, sans-serif;
+  }
+
+  /* Contenedor centrado, mobile-first, con safe-areas */
+  .screen {
+    @apply mx-auto flex min-h-full w-full max-w-md flex-col px-5 pb-8;
+    padding-top: max(1.25rem, env(safe-area-inset-top));
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  }
+
+  .card {
+    @apply rounded-3xl bg-white/10 p-5 backdrop-blur-sm ring-1 ring-white/15;
+  }
+
+  .input {
+    @apply w-full rounded-2xl border-2 border-white/20 bg-white/95 px-5 py-4 text-lg
+      font-bold text-slate-900 placeholder:text-slate-400 outline-none
+      focus:border-brand-pink focus:ring-2 focus:ring-brand-pink/40;
+  }
+}

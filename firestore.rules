@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /games/{gameId} {
+      // Cualquiera autenticado puede leer el estado del juego (lobby/letra/timers).
+      allow read: if signedIn();
+      // El documento de juego solo lo modifican las funciones serverless (Admin SDK).
+      allow write: if false;
+
+      // Jugadores: lectura para todos los participantes.
+      // Los documentos se crean vía Admin (createGame/joinGame). Desde el cliente
+      // solo se permite actualizar presencia/apodo, NUNCA el puntaje (totalScore).
+      match /players/{uid} {
+        allow read: if signedIn();
+        allow create: if false;
+        allow update: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.totalScore == resource.data.totalScore;
+        allow delete: if false;
+      }
+
+      // Respuestas de cada ronda: ANTI-TRAMPA.
+      // Escritura SIEMPRE vía Admin (/api/validate) tras verificar el token, de modo
+      // que nadie pueda falsear el status "valid" ni habilitar STOP de forma tramposa.
+      // Lectura: solo mi propio doc mientras se juega; todas cuando el juego pasa a
+      // "review"/"finished" (para pintar el tablero).
+      match /rounds/{roundIndex}/answers/{uid} {
+        allow read: if signedIn() && (
+          request.auth.uid == uid ||
+          get(/databases/$(database)/documents/games/$(gameId)).data.status in ['review', 'finished']
+        );
+        allow write: if false;
+      }
+    }
+
+    // Caché de validaciones: lectura para autenticados; escritura solo vía Admin.
+    match /validations/{key} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+  }
+}
