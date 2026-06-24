@@ -7,6 +7,7 @@ import { ValidationBadge } from '../components/ValidationBadge'
 import { StopButton } from '../components/StopButton'
 import { useMyAnswer } from '../hooks/useAnswers'
 import { useCountdown } from '../hooks/useCountdown'
+import { useViewportHeight } from '../hooks/useViewportHeight'
 import { ROUND_SECONDS } from '../lib/constants'
 import { api } from '../lib/api'
 import type { AnswerStatus, GameDoc } from '../lib/types'
@@ -33,6 +34,7 @@ export function Play({ gameId, game, uid }: Props) {
   const letter = game.currentLetter || '?'
   const myAnswer = useMyAnswer(gameId, roundIndex, uid)
   const secondsLeft = useCountdown(game.roundEndsAt ? game.roundEndsAt.toMillis() : null)
+  const viewportHeight = useViewportHeight()
 
   const [index, setIndex] = useState(0) // 0..categories.length (último = resumen)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
@@ -119,7 +121,14 @@ export function Play({ gameId, game, uid }: Props) {
   const cat = categories[index]
 
   return (
-    <div className="screen gap-4">
+    <div
+      className="mx-auto flex w-full max-w-md flex-col gap-4 overflow-y-auto px-5"
+      style={{
+        height: viewportHeight,
+        paddingTop: 'max(1rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+      }}
+    >
       {/* Reveal de la letra */}
       <AnimatePresence>
         {reveal && (
@@ -201,6 +210,8 @@ export function Play({ gameId, game, uid }: Props) {
               value={drafts[cat] || ''}
               maxLength={40}
               autoFocus
+              enterKeyHint="next"
+              autoComplete="off"
               placeholder={`Algo con "${letter}"…`}
               onChange={(e) => setDrafts((d) => ({ ...d, [cat]: e.target.value }))}
               onKeyDown={(e) => {

@@ -121,7 +121,7 @@ export function Review({ gameId, game, players, uid }: Props) {
           {loading === 'next'
             ? 'Cargando…'
             : lettersLeft > 0
-              ? `▶️ Siguiente letra (${lettersLeft} restantes)`
+              ? '▶️ Siguiente letra'
               : 'No quedan letras'}
         </Button>
         <Button variant="danger" onClick={finish} disabled={loading !== null}>
