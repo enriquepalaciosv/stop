@@ -45,6 +45,7 @@ export function Play({ gameId, game, uid }: Props) {
 
   const loadedRound = useRef<number | null>(null)
   const closing = useRef(false)
+  const inFlight = useRef<Set<string>>(new Set()) // categorías validándose ahora mismo
 
   // Reinicia el wizard al cambiar de letra/ronda y muestra el reveal.
   useEffect(() => {
@@ -81,13 +82,26 @@ export function Play({ gameId, game, uid }: Props) {
     const word = (drafts[cat] || '').trim()
     const stored = myAnswer?.answers?.[cat]
     if (stored && stored.word === word && stored.status !== 'empty') return // sin cambios
+    if (inFlight.current.has(cat)) return // ya se está validando esta categoría
+    inFlight.current.add(cat)
     setValidating((v) => ({ ...v, [cat]: true }))
     setError(null)
     try {
-      await api.validate(gameId, cat, word)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al validar')
+      // 2 intentos: si falla (timeout/error), reintenta una vez tras una pausa breve.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          await api.validate(gameId, cat, word)
+          return
+        } catch (e) {
+          if (attempt === 1) {
+            setError(e instanceof Error ? e.message : 'Error al validar')
+          } else {
+            await new Promise((r) => setTimeout(r, 600))
+          }
+        }
+      }
     } finally {
+      inFlight.current.delete(cat)
       setValidating((v) => ({ ...v, [cat]: false }))
     }
   }
@@ -119,6 +133,19 @@ export function Play({ gameId, game, uid }: Props) {
   const allValid = !!myAnswer?.allValid
   const onSummary = index >= categories.length
   const cat = categories[index]
+
+  // Valida en SEGUNDO PLANO mientras escribes (debounce): así, al terminar,
+  // casi todo ya está validado y STOP queda disponible casi al instante.
+  useEffect(() => {
+    if (onSummary || reveal || !cat) return
+    const word = (drafts[cat] || '').trim()
+    if (!word) return
+    const stored = myAnswer?.answers?.[cat]
+    if (stored && stored.word === word && stored.status !== 'empty') return
+    const t = setTimeout(() => commit(cat), 600)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drafts, cat, onSummary, reveal, myAnswer])
 
   return (
     <div

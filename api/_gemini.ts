@@ -11,7 +11,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 // Config optimizada para latencia mínima: sin "thinking", salida corta, determinista.
 const generationConfig = {
   temperature: 0,
-  maxOutputTokens: 150,
+  maxOutputTokens: 60,
   responseMimeType: 'application/json',
   responseSchema: {
     type: SchemaType.OBJECT,
@@ -32,7 +32,10 @@ function getModel() {
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new HttpError(500, 'GEMINI_API_KEY no está configurada')
   if (!client) client = new GoogleGenerativeAI(key)
-  if (!cachedModel) cachedModel = client.getGenerativeModel({ model: MODEL, generationConfig })
+  if (!cachedModel) {
+    // timeout por petición: si una llamada se cuelga, falla rápido y se reintenta.
+    cachedModel = client.getGenerativeModel({ model: MODEL, generationConfig }, { timeout: 6000 })
+  }
   return cachedModel
 }
 
@@ -55,8 +58,8 @@ Letra: ${letter} | Categoría: ${category} | Palabra: ${word}
 Es válida (valid=true) solo si: empieza con "${letter}" (ignora acentos/mayúsculas), existe en español o es nombre propio conocido, y pertenece a la categoría.
 Si no, valid=false con reason de máximo 8 palabras.`
 
-  // Hasta 3 intentos con backoff ante errores transitorios (503 sobrecarga, 429 pasajero).
-  const delays = [350, 900, 1800]
+  // Reintentos con backoff ante errores transitorios (timeout / sobrecarga / rate-limit).
+  const delays = [300, 800]
   let text = ''
   let lastErr: unknown
   for (let attempt = 0; attempt <= delays.length; attempt++) {
@@ -68,7 +71,9 @@ Si no, valid=false con reason de máximo 8 palabras.`
     } catch (err) {
       lastErr = err
       const status = (err as { status?: number })?.status
-      if (attempt < delays.length && status && RETRY_STATUS.has(status)) {
+      // Reintenta en errores transitorios y también en timeouts/red (sin status).
+      const retriable = !status || RETRY_STATUS.has(status)
+      if (attempt < delays.length && retriable) {
         await sleep(delays[attempt])
         continue
       }
