@@ -30,17 +30,18 @@ export function Lobby({ gameId, game, players, meUid, onLeave }: Props) {
   }
 
   async function share() {
-    const text = `¡Únete a mi juego de STOP! Código: ${gameId}`
+    const url = `${location.origin}/?game=${gameId}`
+    const text = `¡Únete a mi juego de STOP! 🛑\nEntra aquí: ${url}`
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'STOP', text, url: location.origin })
+        await navigator.share({ title: 'STOP', text, url })
       } else {
-        await navigator.clipboard.writeText(gameId)
+        await navigator.clipboard.writeText(url)
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
       }
     } catch {
-      /* el usuario canceló */
+      /* el usuario canceló o falló el portapapeles */
     }
   }
 
@@ -62,7 +63,7 @@ export function Lobby({ gameId, game, players, meUid, onLeave }: Props) {
           {gameId}
         </button>
         <p className="mt-2 text-sm font-semibold text-brand-amber">
-          {copied ? '¡Copiado!' : 'Toca el código para compartir'}
+          {copied ? '¡Enlace copiado!' : 'Toca el código para compartir el enlace'}
         </p>
       </div>
 

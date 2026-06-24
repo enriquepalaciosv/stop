@@ -5,12 +5,14 @@ import { SHOW_SECRET_FIELD } from '../lib/constants'
 
 interface Props {
   initialNick: string
+  initialCode?: string
   onBack: () => void
   onJoined: (gameId: string, nickname: string) => void
 }
 
-export function Join({ initialNick, onBack, onJoined }: Props) {
-  const [code, setCode] = useState('')
+export function Join({ initialNick, initialCode = '', onBack, onJoined }: Props) {
+  const [code, setCode] = useState(initialCode)
+  const fromLink = !!initialCode
   const [nickname, setNickname] = useState(initialNick)
   const [secret, setSecret] = useState('')
   const [loading, setLoading] = useState(false)
@@ -44,14 +46,20 @@ export function Join({ initialNick, onBack, onJoined }: Props) {
         <label className="block">
           <span className="mb-1 block font-bold text-white/80">Código del juego</span>
           <input
-            className="input text-center text-3xl uppercase tracking-[0.3em]"
+            className="input text-center text-3xl uppercase tracking-[0.3em] disabled:opacity-100"
             value={code}
             maxLength={8}
             placeholder="ABCD"
             autoCapitalize="characters"
+            readOnly={fromLink}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
-            autoFocus
+            autoFocus={!fromLink}
           />
+          {fromLink && (
+            <span className="mt-1 block text-sm font-semibold text-brand-green">
+              ✓ Te invitaron a esta partida
+            </span>
+          )}
         </label>
 
         <label className="block">
@@ -62,6 +70,7 @@ export function Join({ initialNick, onBack, onJoined }: Props) {
             maxLength={24}
             placeholder="Ej. Pelusa"
             onChange={(e) => setNickname(e.target.value)}
+            autoFocus={fromLink}
           />
         </label>
 

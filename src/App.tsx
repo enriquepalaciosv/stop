@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useGameState } from './hooks/useGameState'
 import { Loader } from './components/Loader'
@@ -17,9 +17,23 @@ type Route = 'home' | 'create' | 'join'
 
 export default function App() {
   const { uid, error: authError } = useAuth()
-  const [route, setRoute] = useState<Route>('home')
-  const [gameId, setGameId] = useState<string | null>(() => localStorage.getItem(LS_GAME))
+
+  // Código de invitación en la URL (?game=ABCD): abre directo la pantalla de unirse.
+  const joinCode = useMemo(
+    () => (new URLSearchParams(window.location.search).get('game') || '').toUpperCase(),
+    [],
+  )
+
+  const [route, setRoute] = useState<Route>(joinCode ? 'join' : 'home')
+  const [gameId, setGameId] = useState<string | null>(() =>
+    joinCode ? null : localStorage.getItem(LS_GAME),
+  )
   const [nickname, setNickname] = useState(() => localStorage.getItem(LS_NICK) || '')
+
+  // Limpia el parámetro de la URL para que un refresh no fuerce la pantalla de unirse.
+  useEffect(() => {
+    if (joinCode) window.history.replaceState({}, '', window.location.pathname)
+  }, [joinCode])
 
   const { game, players, exists } = useGameState(gameId)
 
@@ -73,7 +87,14 @@ export default function App() {
     case 'create':
       return <Create initialNick={nickname} onBack={() => setRoute('home')} onCreated={enterGame} />
     case 'join':
-      return <Join initialNick={nickname} onBack={() => setRoute('home')} onJoined={enterGame} />
+      return (
+        <Join
+          initialNick={nickname}
+          initialCode={joinCode}
+          onBack={() => setRoute('home')}
+          onJoined={enterGame}
+        />
+      )
     default:
       return <Home onCreate={() => setRoute('create')} onJoin={() => setRoute('join')} />
   }
