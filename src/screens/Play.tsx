@@ -147,6 +147,23 @@ export function Play({ gameId, game, uid }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drafts, cat, onSummary, reveal, myAnswer])
 
+  // En el RESUMEN: re-valida cualquier palabra que quedó sin comprobar (p. ej. al
+  // pasar "Siguiente" muy rápido, el debounce no llegó a dispararse). Así STOP se
+  // habilita solo cuando de verdad faltan revisiones, sin tener que entrar a cada una.
+  useEffect(() => {
+    if (!onSummary || reveal) return
+    for (const c of categories) {
+      const word = (drafts[c] || '').trim()
+      if (!word) continue // sin palabra: no hay nada que validar
+      const stored = myAnswer?.answers?.[c]
+      // ya validada con esta misma palabra (válida o inválida) → nada que hacer
+      if (stored && stored.word === word && stored.status !== 'empty') continue
+      if (inFlight.current.has(c)) continue // ya se está validando
+      commit(c)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSummary, reveal, drafts, myAnswer])
+
   return (
     <div
       className="mx-auto flex w-full max-w-md flex-col gap-4 overflow-y-auto px-5"
@@ -318,6 +335,11 @@ export function Play({ gameId, game, uid }: Props) {
           </div>
 
           <div className="mt-auto flex flex-col items-center gap-3 pt-4">
+            {!allValid && categories.some((c) => statusFor(c) === 'validating') && (
+              <p className="text-center text-sm font-semibold text-white/60">
+                Comprobando palabras…
+              </p>
+            )}
             <StopButton enabled={allValid} loading={stopping} onClick={onStop} />
             <Button variant="ghost" full onClick={() => setIndex(0)}>
               ← Seguir editando
