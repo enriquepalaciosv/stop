@@ -1,4 +1,4 @@
-# 🛑 STOP — el juego de Basta / Tutti Frutti
+# 🛑 STOP
 
 Juego web multijugador en tiempo real, optimizado para móvil (UX estilo Kahoot).
 Crea o únete a partidas, juega rondas por letra aleatoria del alfabeto español sin

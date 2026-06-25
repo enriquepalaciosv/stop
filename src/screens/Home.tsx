@@ -17,10 +17,7 @@ export function Home({ onCreate, onJoin }: Props) {
         <div className="text-7xl">🛑</div>
         <h1 className="font-display text-7xl font-extrabold tracking-tight drop-shadow-lg">
           STOP
-        </h1>
-        <p className="mt-1 font-semibold text-white/70">
-          El clásico juego de Basta / Tutti Frutti
-        </p>
+        </h1>        
       </motion.div>
 
       <div className="w-full space-y-4">
