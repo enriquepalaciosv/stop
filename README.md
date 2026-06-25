@@ -33,8 +33,8 @@ repetir, escribe palabras por categoría en un wizard, y **Gemini** valida cada 
 | Válida pero repetida con otro jugador              | 5      |
 | Vacía o inválida                                   | 0      |
 
-Solo quien tiene **todas** sus palabras válidas puede presionar **STOP**, que corta la
-ronda al instante para todos. La ronda también termina a los **2 minutos**.
+Solo quien tiene **todas** sus palabras completas puede presionar **STOP**, que corta la
+ronda al instante para todos. La ronda también termina a los **60 segundos**.
 
 ## Configuración
 
@@ -68,7 +68,7 @@ cp .env.example .env
 
 - `VITE_FIREBASE_*` — config web (pública).
 - `GEMINI_API_KEY` — secreta (solo servidor).
-- `GEMINI_MODEL` — opcional (default `gemini-2.0-flash`).
+- `GEMINI_MODEL` — opcional (default `gemini-2.5-flash-lite`).
 - `FIREBASE_SERVICE_ACCOUNT` — el JSON del service account **en una sola línea**.
 
 ## Desarrollo local
