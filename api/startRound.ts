@@ -39,6 +39,9 @@ export default postHandler(async (req, res) => {
       roundStartAt: Timestamp.fromMillis(startMs),
       roundEndsAt: Timestamp.fromMillis(endMs),
       scored: false,
+      scoring: false,
+      scoringStartedAt: null,
+      closeFailedAt: null,
       stoppedBy: null,
       stoppedByNick: null,
       closingAt: null,
@@ -70,7 +73,7 @@ export default postHandler(async (req, res) => {
       nickname: player.nickname,
       letter: outcome.letter,
       answers: { ...emptyAnswers },
-      allValid: false,
+      completed: false,
     })
   })
   await batch.commit()

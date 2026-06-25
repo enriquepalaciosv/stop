@@ -8,12 +8,10 @@ const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite'
 const RETRY_STATUS = new Set([429, 500, 503])
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-// Config optimizada para latencia mínima: sin "thinking", salida corta, determinista.
-const generationConfig = {
-  temperature: 0,
-  maxOutputTokens: 60,
-  responseMimeType: 'application/json',
-  responseSchema: {
+// Schema de salida: un array con un veredicto {valid, reason} por palabra.
+const responseSchema = {
+  type: SchemaType.ARRAY,
+  items: {
     type: SchemaType.OBJECT,
     properties: {
       valid: { type: SchemaType.BOOLEAN },
@@ -21,10 +19,7 @@ const generationConfig = {
     },
     required: ['valid', 'reason'],
   },
-  // Desactiva el razonamiento extendido (modelos 2.5) para que sea casi instantáneo.
-  thinkingConfig: { thinkingBudget: 0 },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any
+}
 
 let client: GoogleGenerativeAI | null = null
 let cachedModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null
@@ -34,7 +29,7 @@ function getModel() {
   if (!client) client = new GoogleGenerativeAI(key)
   if (!cachedModel) {
     // timeout por petición: si una llamada se cuelga, falla rápido y se reintenta.
-    cachedModel = client.getGenerativeModel({ model: MODEL, generationConfig }, { timeout: 6000 })
+    cachedModel = client.getGenerativeModel({ model: MODEL }, { timeout: 8000 })
   }
   return cachedModel
 }
@@ -44,19 +39,40 @@ export interface ValidationResult {
   reason: string
 }
 
-// Pregunta a Gemini si una palabra es válida para la categoría y empieza con la letra.
-export async function validateWord(
+export interface WordItem {
+  category: string
+  word: string
+}
+
+// Valida en UNA sola llamada todas las palabras de un jugador (batch). Devuelve
+// un veredicto por palabra, EN EL MISMO ORDEN que `items`. Una request por
+// jugador (en vez de una por palabra) reduce la ráfaga contra Gemini y la latencia.
+export async function validateWords(
   letter: string,
-  category: string,
-  word: string,
-): Promise<ValidationResult> {
+  items: WordItem[],
+): Promise<ValidationResult[]> {
+  if (items.length === 0) return []
   const model = getModel()
 
-  // Prompt compacto (menos tokens de entrada = menor latencia).
-  const prompt = `Juego "Stop" en español. ¿La palabra es válida?
-Letra: ${letter} | Categoría: ${category} | Palabra: ${word}
-Es válida (valid=true) solo si: empieza con "${letter}" (ignora acentos/mayúsculas), existe en español o es nombre propio conocido, y pertenece a la categoría.
-Si no, valid=false con reason de máximo 8 palabras.`
+  const list = items
+    .map((it, i) => `${i + 1}. Categoría: ${it.category} | Palabra: ${it.word}`)
+    .join('\n')
+  const prompt = `Juego "Stop" en español. Valida cada palabra para SU categoría con la letra "${letter}".
+Devuelve un JSON array con un objeto {valid, reason} por palabra, EN EL MISMO ORDEN y la misma cantidad (${items.length}).
+Una palabra es válida (valid=true) solo si: empieza con "${letter}" (ignora acentos/mayúsculas), existe en español o es nombre propio conocido, y pertenece a su categoría.
+Si no, valid=false con reason de máximo 8 palabras.
+Palabras:
+${list}`
+
+  // Config por petición: determinista, sin "thinking", salida acotada al nº de palabras.
+  const generationConfig = {
+    temperature: 0,
+    maxOutputTokens: Math.min(1200, 120 + 70 * items.length),
+    responseMimeType: 'application/json',
+    responseSchema,
+    thinkingConfig: { thinkingBudget: 0 },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any
 
   // Reintentos con backoff ante errores transitorios (timeout / sobrecarga / rate-limit).
   const delays = [300, 800]
@@ -64,7 +80,10 @@ Si no, valid=false con reason de máximo 8 palabras.`
   let lastErr: unknown
   for (let attempt = 0; attempt <= delays.length; attempt++) {
     try {
-      const result = await model.generateContent(prompt)
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig,
+      })
       text = result.response.text()
       lastErr = null
       break
@@ -86,8 +105,11 @@ Si no, valid=false con reason de máximo 8 palabras.`
   }
 
   try {
-    const parsed = JSON.parse(text) as ValidationResult
-    return { valid: !!parsed.valid, reason: String(parsed.reason || '') }
+    const parsed = JSON.parse(text) as ValidationResult[]
+    if (!Array.isArray(parsed) || parsed.length !== items.length) {
+      throw new Error('cantidad de veredictos inesperada')
+    }
+    return parsed.map((p) => ({ valid: !!p.valid, reason: String(p.reason || '') }))
   } catch {
     throw new HttpError(502, 'Respuesta inesperada del validador')
   }

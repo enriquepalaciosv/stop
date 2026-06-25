@@ -4,7 +4,7 @@ interface Props {
   onClick: () => void
 }
 
-// Botón STOP estilo señal de alto. Solo habilitado si todas las palabras son válidas.
+// Botón STOP estilo señal de alto. Habilitado al completar todas las palabras.
 export function StopButton({ enabled, loading, onClick }: Props) {
   return (
     <div className="flex flex-col items-center gap-2">
@@ -27,7 +27,7 @@ export function StopButton({ enabled, loading, onClick }: Props) {
       </button>
       {!enabled && (
         <span className="text-center text-xs font-semibold text-white/60">
-          Completa todas las palabras válidas para detener
+          Completa todas las palabras para detener
         </span>
       )}
     </div>
