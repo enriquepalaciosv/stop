@@ -1,6 +1,6 @@
 import { adminDb } from './_admin.js'
 import { normalize } from './_scoring.js'
-import { validateWord } from './_gemini.js'
+import { validateWords, type WordItem } from './_gemini.js'
 
 export interface CatAnswer {
   word: string
@@ -8,43 +8,66 @@ export interface CatAnswer {
   reason?: string
 }
 
-// Valida una palabra para una categoría/letra y devuelve su status final.
-// Lógica compartida por el endpoint /api/validate y la revalidación al cerrar
-// la ronda: chequeo de vacío, chequeo de letra inicial, cache en validations/
-// y, si hace falta, consulta a Gemini.
-export async function validateCategory(
+// Valida en bloque las palabras de un jugador y devuelve un CatAnswer por entrada,
+// EN EL MISMO ORDEN que `entries`. Chequea vacío y letra inicial localmente, usa la
+// caché de validations/ por palabra y agrupa los faltantes en UNA sola llamada a
+// Gemini (validateWords). Compartido por la revalidación al cerrar la ronda.
+export async function validateAnswers(
   letter: string,
-  category: string,
-  rawWord: string,
-): Promise<CatAnswer> {
-  const word = String(rawWord || '').trim().slice(0, 40)
+  entries: WordItem[],
+): Promise<CatAnswer[]> {
+  const results: CatAnswer[] = new Array(entries.length)
+  // Palabras que no resolvimos localmente ni por caché → irán a Gemini en batch.
+  const toAsk: { idx: number; norm: string; cacheRef: FirebaseFirestore.DocumentReference; item: WordItem }[] = []
 
-  if (!word) {
-    return { word: '', status: 'empty' }
+  for (let i = 0; i < entries.length; i++) {
+    const category = entries[i].category
+    const word = String(entries[i].word || '').trim().slice(0, 40)
+
+    if (!word) {
+      results[i] = { word: '', status: 'empty' }
+      continue
+    }
+    if (normalize(word).charAt(0) !== normalize(letter).charAt(0)) {
+      results[i] = { word, status: 'invalid', reason: `No empieza con la letra ${letter}` }
+      continue
+    }
+
+    const norm = normalize(word)
+    const cacheKey = `${letter}_${category}_${norm}`.replace(/[/]/g, '-')
+    const cacheRef = adminDb().doc(`validations/${cacheKey}`)
+    const cached = await cacheRef.get()
+    if (cached.exists) {
+      const c = cached.data()!
+      results[i] = c.valid
+        ? { word, status: 'valid' }
+        : { word, status: 'invalid', reason: c.reason || 'No es válida para la categoría' }
+    } else {
+      toAsk.push({ idx: i, norm, cacheRef, item: { category, word } })
+    }
   }
-  if (normalize(word).charAt(0) !== normalize(letter).charAt(0)) {
-    return { word, status: 'invalid', reason: `No empieza con la letra ${letter}` }
+
+  if (toAsk.length) {
+    const verdicts = await validateWords(
+      letter,
+      toAsk.map((t) => t.item),
+    )
+    await Promise.all(
+      toAsk.map(async (t, k) => {
+        const v = verdicts[k]
+        await t.cacheRef.set({
+          letter,
+          category: t.item.category,
+          norm: t.norm,
+          valid: v.valid,
+          reason: v.reason,
+        })
+        results[t.idx] = v.valid
+          ? { word: t.item.word, status: 'valid' }
+          : { word: t.item.word, status: 'invalid', reason: v.reason || 'No es válida para la categoría' }
+      }),
+    )
   }
 
-  const norm = normalize(word)
-  const cacheKey = `${letter}_${category}_${norm}`.replace(/[/]/g, '-')
-  const cacheRef = adminDb().doc(`validations/${cacheKey}`)
-  const cached = await cacheRef.get()
-
-  let valid: boolean
-  let reason: string
-  if (cached.exists) {
-    const c = cached.data()!
-    valid = !!c.valid
-    reason = c.reason || ''
-  } else {
-    const v = await validateWord(letter, category, word)
-    valid = v.valid
-    reason = v.reason
-    await cacheRef.set({ letter, category, norm, valid, reason })
-  }
-
-  return valid
-    ? { word, status: 'valid' }
-    : { word, status: 'invalid', reason: reason || 'No es válida para la categoría' }
+  return results
 }

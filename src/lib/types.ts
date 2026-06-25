@@ -17,6 +17,7 @@ export interface GameDoc {
   stoppedBy: string | null // uid del que presionó STOP (null = por tiempo)
   stoppedByNick: string | null
   closingAt: Timestamp | null // marca de inicio de la ventana de cierre (STOP); null si no hay
+  closeFailedAt: Timestamp | null // un cierre falló (Gemini caído); habilita reintento manual
   scored: boolean
   createdBy: string
   createdAt: Timestamp
@@ -43,7 +44,7 @@ export interface AnswerDoc {
   nickname: string
   letter: string
   answers: Record<string, CategoryAnswer>
-  allValid: boolean
+  completed: boolean // todas las categorías tienen texto (no implica validez)
   scoreByCategory?: Record<string, number>
   roundScore?: number
 }

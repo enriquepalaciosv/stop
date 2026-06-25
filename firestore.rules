@@ -26,8 +26,9 @@ service cloud.firestore {
       }
 
       // Respuestas de cada ronda: ANTI-TRAMPA.
-      // Escritura SIEMPRE vía Admin (/api/validate) tras verificar el token, de modo
-      // que nadie pueda falsear el status "valid" ni habilitar STOP de forma tramposa.
+      // Escritura SIEMPRE vía Admin (/api/saveAnswers y el cierre de ronda) tras
+      // verificar el token, de modo que nadie pueda falsear el status "valid" ni
+      // habilitar STOP de forma tramposa.
       // Lectura: solo mi propio doc mientras se juega; todas cuando el juego pasa a
       // "review"/"finished" (para pintar el tablero).
       match /rounds/{roundIndex}/answers/{uid} {

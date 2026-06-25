@@ -23,11 +23,6 @@ async function post<T>(path: string, body: Record<string, unknown>): Promise<T> 
   return data as T
 }
 
-export interface ValidateResponse {
-  status: 'empty' | 'valid' | 'invalid'
-  reason?: string
-}
-
 export const api = {
   createGame: (nickname: string, secret?: string) =>
     post<{ gameId: string }>('createGame', { nickname, secret }),
@@ -38,10 +33,12 @@ export const api = {
   startRound: (gameId: string) =>
     post<{ finished: boolean; letter?: string }>('startRound', { gameId }),
 
-  validate: (gameId: string, category: string, word: string) =>
-    post<ValidateResponse>('validate', { gameId, category, word }),
+  // Guarda el texto de las respuestas (sin validar). La validación con Gemini
+  // ocurre al cerrar la ronda (STOP o tiempo agotado).
+  saveAnswers: (gameId: string, answers: Record<string, string>) =>
+    post<{ completed: boolean }>('saveAnswers', { gameId, answers }),
 
-  closeRound: (gameId: string, reason: 'stop' | 'timeout') =>
+  closeRound: (gameId: string, reason: 'stop' | 'timeout' | 'retry') =>
     post<{ ok: boolean; closed: boolean }>('closeRound', { gameId, reason }),
 
   finishGame: (gameId: string) => post<{ ok: boolean }>('finishGame', { gameId }),

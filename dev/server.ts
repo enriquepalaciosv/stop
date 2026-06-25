@@ -5,7 +5,7 @@ import express from 'express'
 import createGame from '../api/createGame.js'
 import joinGame from '../api/joinGame.js'
 import startRound from '../api/startRound.js'
-import validate from '../api/validate.js'
+import saveAnswers from '../api/saveAnswers.js'
 import closeRound from '../api/closeRound.js'
 import finishGame from '../api/finishGame.js'
 
@@ -13,7 +13,7 @@ const routes: Record<string, unknown> = {
   createGame,
   joinGame,
   startRound,
-  validate,
+  saveAnswers,
   closeRound,
   finishGame,
 }
