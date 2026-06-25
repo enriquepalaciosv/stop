@@ -15,9 +15,12 @@ const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
 
-// experimentalAutoDetectLongPolling: en redes/proxies donde el streaming de
-// Firestore falla en silencio, detecta y usa long-polling para que los
-// onSnapshot lleguen a todos (evita el "a unos no les inicia hasta refrescar").
+// experimentalForceLongPolling: forzamos long-polling en lugar de auto-detectarlo.
+// La auto-detección a veces elige el streaming gRPC-Web, este se cae en silencio
+// para algún cliente y deja de entregar los pushes del servidor hasta recargar
+// (síntoma: "a unos no les inicia la ronda hasta refrescar"). Long-polling es
+// robusto frente a proxies/redes/navegadores; cuesta algo de latencia, irrelevante
+// para este juego.
 export const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true,
+  experimentalForceLongPolling: true,
 })
