@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { collection, doc, getDoc, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../firebase'
 import type { GameDoc, Player, PlayerDoc } from '../lib/types'
 
@@ -11,11 +11,34 @@ export function useGameState(gameId: string | null) {
 
   useEffect(() => {
     if (!gameId) return
-    const unsub = onSnapshot(doc(db, 'games', gameId), (snap) => {
+    const ref = doc(db, 'games', gameId)
+    const unsub = onSnapshot(ref, (snap) => {
       setExists(snap.exists())
       setGame(snap.exists() ? (snap.data() as GameDoc) : null)
     })
-    return unsub
+
+    // Al volver del segundo plano o recuperar la conexión, hace una lectura
+    // puntual para ponerse al día al instante (p. ej. la ronda ya inició)
+    // sin esperar a que el socket en tiempo real reconecte.
+    const resync = () => {
+      if (document.visibilityState === 'hidden') return
+      getDoc(ref)
+        .then((snap) => {
+          setExists(snap.exists())
+          setGame(snap.exists() ? (snap.data() as GameDoc) : null)
+        })
+        .catch(() => {})
+    }
+    document.addEventListener('visibilitychange', resync)
+    window.addEventListener('online', resync)
+    window.addEventListener('focus', resync)
+
+    return () => {
+      unsub()
+      document.removeEventListener('visibilitychange', resync)
+      window.removeEventListener('online', resync)
+      window.removeEventListener('focus', resync)
+    }
   }, [gameId])
 
   useEffect(() => {

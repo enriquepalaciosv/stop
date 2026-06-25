@@ -16,6 +16,7 @@ export interface GameDoc {
   roundEndsAt: Timestamp | null
   stoppedBy: string | null // uid del que presionó STOP (null = por tiempo)
   stoppedByNick: string | null
+  closingAt: Timestamp | null // marca de inicio de la ventana de cierre (STOP); null si no hay
   scored: boolean
   createdBy: string
   createdAt: Timestamp

@@ -41,6 +41,7 @@ export default postHandler(async (req, res) => {
       scored: false,
       stoppedBy: null,
       stoppedByNick: null,
+      closingAt: null,
     })
 
     return { finished: false as const, letter, roundIndex }

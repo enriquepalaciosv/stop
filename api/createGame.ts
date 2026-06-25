@@ -56,6 +56,7 @@ export default postHandler(async (req, res) => {
     roundEndsAt: null,
     stoppedBy: null,
     stoppedByNick: null,
+    closingAt: null,
     scored: false,
     createdBy: uid,
     createdAt: now,
