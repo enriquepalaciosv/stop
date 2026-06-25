@@ -70,11 +70,14 @@ export function Play({ gameId, game, uid }: Props) {
   }, [myAnswer, roundIndex, categories])
 
   // Corte por tiempo agotado (cualquiera dispara; el servidor evita doble cómputo).
+  // Antes de cerrar, vuelca cualquier palabra escrita que aún no se haya enviado.
   useEffect(() => {
     if (secondsLeft === 0 && game.status === 'playing' && !reveal && !closing.current) {
       closing.current = true
+      flushPending()
       api.closeRound(gameId, 'timeout').catch(() => {})
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [secondsLeft, game.status, reveal, gameId])
 
   // Valida una categoría con el servidor (Gemini). El status llega por la suscripción.
@@ -106,6 +109,20 @@ export function Play({ gameId, game, uid }: Props) {
     }
   }
 
+  // Vuelca al servidor toda categoría con texto que aún no esté validada
+  // (válida o inválida). Reutilizado por el resumen, el cierre por STOP y el timeout.
+  function flushPending() {
+    for (const c of categories) {
+      const word = (drafts[c] || '').trim()
+      if (!word) continue // sin palabra: nada que enviar
+      const stored = myAnswer?.answers?.[c]
+      // ya validada con esta misma palabra → nada que hacer
+      if (stored && stored.word === word && stored.status !== 'empty') continue
+      if (inFlight.current.has(c)) continue // ya se está validando
+      commit(c)
+    }
+  }
+
   function statusFor(cat: string): AnswerStatus {
     if (validating[cat]) return 'validating'
     const stored = myAnswer?.answers?.[cat]
@@ -133,6 +150,7 @@ export function Play({ gameId, game, uid }: Props) {
   const allValid = !!myAnswer?.allValid
   const onSummary = index >= categories.length
   const cat = categories[index]
+  const closingNow = !!game.closingAt // alguien presionó STOP: ventana de cierre activa
 
   // Valida en SEGUNDO PLANO mientras escribes (debounce): así, al terminar,
   // casi todo ya está validado y STOP queda disponible casi al instante.
@@ -152,17 +170,18 @@ export function Play({ gameId, game, uid }: Props) {
   // habilita solo cuando de verdad faltan revisiones, sin tener que entrar a cada una.
   useEffect(() => {
     if (!onSummary || reveal) return
-    for (const c of categories) {
-      const word = (drafts[c] || '').trim()
-      if (!word) continue // sin palabra: no hay nada que validar
-      const stored = myAnswer?.answers?.[c]
-      // ya validada con esta misma palabra (válida o inválida) → nada que hacer
-      if (stored && stored.word === word && stored.status !== 'empty') continue
-      if (inFlight.current.has(c)) continue // ya se está validando
-      commit(c)
-    }
+    flushPending()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onSummary, reveal, drafts, myAnswer])
+
+  // Alguien presionó STOP: hay ~1s de ventana antes de puntuar. Vuelca de
+  // inmediato cualquier palabra escrita que aún no haya llegado al servidor,
+  // para que cuente aunque estuvieras a media escritura.
+  useEffect(() => {
+    if (!closingNow || reveal) return
+    flushPending()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closingNow, reveal, drafts, myAnswer])
 
   return (
     <div
@@ -196,6 +215,32 @@ export function Play({ gameId, game, uid }: Props) {
             >
               <LetterBadge letter={letter} size={180} />
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Cierre de ronda tras un STOP: ventana breve mientras se vuelcan y
+          revalidan las palabras de todos en el servidor. */}
+      <AnimatePresence>
+        {closingNow && !reveal && (
+          <motion.div
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-brand-deep px-6 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="text-6xl"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 12 }}
+            >
+              🛑
+            </motion.div>
+            <p className="font-display text-2xl font-extrabold text-white">
+              {game.stoppedByNick ? `¡${game.stoppedByNick} presionó STOP!` : '¡STOP!'}
+            </p>
+            <p className="text-sm font-semibold text-white/70">Cerrando ronda…</p>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { initializeFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,4 +14,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+
+// experimentalAutoDetectLongPolling: en redes/proxies donde el streaming de
+// Firestore falla en silencio, detecta y usa long-polling para que los
+// onSnapshot lleguen a todos (evita el "a unos no les inicia hasta refrescar").
+export const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+})

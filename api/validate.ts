@@ -5,14 +5,7 @@ import {
   reqString,
   requireAuth,
 } from './_admin.js'
-import { normalize } from './_scoring.js'
-import { validateWord } from './_gemini.js'
-
-interface CatAnswer {
-  word: string
-  status: string
-  reason?: string
-}
+import { validateCategory, type CatAnswer } from './_validate.js'
 
 export default postHandler(async (req, res) => {
   const uid = await requireAuth(req)
@@ -39,36 +32,24 @@ export default postHandler(async (req, res) => {
     .collection('answers')
     .doc(uid)
 
-  // Resuelve el status de ESTA categoría.
-  let result: CatAnswer
-  if (!word) {
-    result = { word: '', status: 'empty' }
-  } else if (normalize(word).charAt(0) !== normalize(letter).charAt(0)) {
-    result = { word, status: 'invalid', reason: `No empieza con la letra ${letter}` }
-  } else {
-    const norm = normalize(word)
-    const cacheKey = `${letter}_${category}_${norm}`.replace(/[/]/g, '-')
-    const cacheRef = adminDb().doc(`validations/${cacheKey}`)
-    const cached = await cacheRef.get()
-
-    let valid: boolean
-    let reason: string
-    if (cached.exists) {
-      const c = cached.data()!
-      valid = !!c.valid
-      reason = c.reason || ''
-    } else {
-      const v = await validateWord(letter, category, word)
-      valid = v.valid
-      reason = v.reason
-      await cacheRef.set({ letter, category, norm, valid, reason })
-    }
-    result = valid
-      ? { word, status: 'valid' }
-      : { word, status: 'invalid', reason: reason || 'No es válida para la categoría' }
+  // 1) Persiste el TEXTO de inmediato con status 'validating' (si hay palabra),
+  // antes de consultar a Gemini. Así, si la ronda se cierra mientras validamos,
+  // el servidor ya tiene el texto y puede revalidarlo al puntuar (no se pierde).
+  if (word) {
+    await answerRef.set(
+      {
+        uid,
+        letter,
+        answers: { [category]: { word, status: 'validating' } },
+      },
+      { merge: true },
+    )
   }
 
-  // Actualiza el documento de respuestas y recalcula allValid.
+  // 2) Resuelve el status real de esta categoría (cache + Gemini).
+  const result: CatAnswer = await validateCategory(letter, category, word)
+
+  // 3) Actualiza el documento de respuestas y recalcula allValid.
   await adminDb().runTransaction(async (tx) => {
     const snap = await tx.get(answerRef)
     const data = snap.exists ? snap.data()! : { answers: {} }
